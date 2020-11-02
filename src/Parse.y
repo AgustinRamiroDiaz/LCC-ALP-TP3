@@ -25,12 +25,14 @@ import Data.Char
     VAR     { TVar $$ }
     TYPEE   { TTypeE }
     DEF     { TDef }
+    LET     { TLet }
+    IN      { TIn }
     
 
 %right VAR
 %left '=' 
 %right '->'
-%right '\\' '.' 
+%right '\\' '.' LET IN
 
 %%
 
