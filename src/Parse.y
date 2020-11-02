@@ -43,7 +43,8 @@ Defexp  : DEF VAR '=' Exp              { Def $2 $4 }
 Exp     :: { LamTerm }
         : '\\' VAR ':' Type '.' Exp    { LAbs $2 $4 $6 }
         | NAbs                         { $1 }
-        | LET Defexp IN Exp               { LLet $2 $4}
+        
+        | LET Defexp IN Exp            { LLet $2 $4 }
         
 NAbs    :: { LamTerm }
         : NAbs Atom                    { LApp $1 $2 }
@@ -99,6 +100,10 @@ data Token = TVar String
                | TColon
                | TArrow
                | TEquals
+
+               | TLet
+               | TIn
+
                | TEOF
                deriving Show
 
@@ -115,6 +120,10 @@ lexer cont s = case s of
                     ('-':('>':cs)) -> cont TArrow cs
                     ('\\':cs)-> cont TAbs cs
                     ('.':cs) -> cont TDot cs
+
+                    ('let':cs)-> cont TLet cs
+                    ('in':cs) -> cont TIn cs
+
                     ('(':cs) -> cont TOpen cs
                     ('-':('>':cs)) -> cont TArrow cs
                     (')':cs) -> cont TClose cs
