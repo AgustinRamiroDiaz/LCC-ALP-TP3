@@ -43,6 +43,7 @@ Defexp  : DEF VAR '=' Exp              { Def $2 $4 }
 Exp     :: { LamTerm }
         : '\\' VAR ':' Type '.' Exp    { LAbs $2 $4 $6 }
         | NAbs                         { $1 }
+        | LET VAR IN Exp               { LLet $2 $4}
         
 NAbs    :: { LamTerm }
         : NAbs Atom                    { LApp $1 $2 }
