@@ -27,11 +27,15 @@ import Data.Char
     DEF     { TDef }
     LET     { TLet }
     IN      { TIn }
+    AS      { TAs }
+    UNITT   { TUnitT }
+    UNIT    { TUnit }
     
 
 %right VAR
 %left '=' 
 %right '->'
+%left AS
 %right '\\' '.' LET IN
 
 %%
@@ -43,8 +47,8 @@ Defexp  : DEF VAR '=' Exp              { Def $2 $4 }
 Exp     :: { LamTerm }
         : '\\' VAR ':' Type '.' Exp    { LAbs $2 $4 $6 }
         | NAbs                         { $1 }
-
         | LET VAR '=' Exp IN Exp       { LLet $2 $4 $6 }
+        | Exp AS Type                  { LAs $1 $3 }
         
 NAbs    :: { LamTerm }
         : NAbs Atom                    { LApp $1 $2 }
@@ -53,10 +57,12 @@ NAbs    :: { LamTerm }
 Atom    :: { LamTerm }
         : VAR                          { LVar $1 }  
         | '(' Exp ')'                  { $2 }
+        | UNIT                         { LUnit }
 
 Type    : TYPEE                        { EmptyT }
         | Type '->' Type               { FunT $1 $3 }
         | '(' Type ')'                 { $2 }
+        | UNITT                        { UnitT }
 
 Defs    : Defexp Defs                  { $1 : $2 }
         |                              { [] }
@@ -103,7 +109,10 @@ data Token = TVar String
 
                | TLet
                | TIn
-
+               | TAs
+               | TUnitT
+               | TUnit
+               
                | TEOF
                deriving Show
 
@@ -129,9 +138,12 @@ lexer cont s = case s of
                      "Línea "++(show line)++": No se puede reconocer "++(show $ take 10 unknown)++ "..."
                     where lexVar cs = case span isAlpha cs of
                               ("E",rest)    -> cont TTypeE rest
+                              ("Unit",rest) -> cont TUnitT rest
+                              ("unit",rest) -> cont TUnit rest
                               ("def",rest)  -> cont TDef rest
                               ("let", rest) -> cont TLet rest
-                              ("in", rest) -> cont TIn rest
+                              ("in", rest)  -> cont TIn rest
+                              ("as", rest)  -> cont TAs rest
                               (var,rest)    -> cont (TVar var) rest
                           consumirBK anidado cl cont s = case s of
                               ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs
