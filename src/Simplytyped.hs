@@ -27,6 +27,9 @@ conversion' b (LAbs n t u) = Lam t (conversion' (n : b) u)
 conversion' b (LLet n t1 t2) = Let (conversion' b t1) (conversion' (n : b) t2)
 conversion' b (LAs lt t) = As (conversion' b lt) t
 conversion' b LUnit = Unit
+conversion' b (LFst lt) = Fst (conversion' b lt)
+conversion' b (LSnd lt) = Snd (conversion' b lt)
+conversion' b (LPair t1 t2) = Pair (conversion' b t1) (conversion' b t2)
 
 -----------------------
 --- eval
@@ -39,8 +42,12 @@ sub _ _ (Free n   )           = Free n
 sub i t (u   :@: v)           = sub i t u :@: sub i t v
 sub i t (Lam t'  u)           = Lam t' (sub (i + 1) t u)
 sub i t (Let t1  t2)          = Let t1 (sub (i + 1) t t2)
-sub i t (As lt  tipo)         = As (sub i t lt) tipo
+sub i t (As t'  tipo)         = As (sub i t t') tipo
 sub i t Unit                  = Unit
+sub i t (Fst t')              = Fst $ sub i t t'
+sub i t (Snd t')              = Snd $ sub i t t'
+sub i t (Pair t1 t2)         = Pair (sub i t t1) (sub i t t2)
+
 
 -- evaluador de términos
 eval :: NameEnv Value Type -> Term -> Value
@@ -50,6 +57,12 @@ eval _ (Lam      t   u      ) = VLam t u
 eval e (Let      t1  t2     ) = eval e (sub 0 t1 t2)
 eval e (As lt t             ) = eval e lt
 eval e Unit                   = VUnit
+-- TODO revisar si se puede ejecutar el fst antes que el eval
+eval e (Fst t)                = case eval e t of VPair t1 _ -> t1
+                                                 _ -> error "fst aplicado a algo distinto de Pair"
+eval e (Snd t)                = case eval e t of VPair _ t2 -> t2
+                                                 _ -> error "snd aplicado a algo distinto de Pair"
+eval e (Pair t1 t2)           = VPair (eval e t1) (eval e t2)
 eval e (Lam _ u  :@: Lam s v) = eval e (sub 0 (Lam s v) u)
 eval e (Lam t u1 :@: u2) = let v2 = eval e u2 in eval e (sub 0 (quote v2) u1)
 eval e (u        :@: v      ) = case eval e u of
@@ -64,6 +77,7 @@ eval e (u        :@: v      ) = case eval e u of
 quote :: Value -> Term
 quote (VLam t f) = Lam t f
 quote VUnit = Unit
+quote (VPair v1 v2) = Pair (quote v1) (quote v2)
 
 ----------------------
 --- type checker
@@ -113,5 +127,14 @@ infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
 infer' c e (Let t1 t2) = infer' c e t1 >>= \tx -> infer' (tx : c) e t2 >>= \tf -> ret tf
 infer' c e (As lt t) = infer' c e lt >>= \tlt -> if tlt == t then ret t else err "Tipo no concuerda (T-Ascribe)"
 infer' c e Unit = ret UnitT
+infer' c e (Fst t) = infer' c e t >>= \tp -> case tp of PairT tf _ -> ret tf
+                                                        _ -> err "No se puede inferir el tipo debido a fst aplicado a algo distinto de Pair"
+infer' c e (Snd t) = infer' c e t >>= \tp -> case tp of PairT _ ts -> ret ts
+                                                        _ -> err "No se puede inferir el tipo debido a snd aplicado a algo distinto de Pair"
+infer' c e (Pair t1 t2) = 
+    do 
+        tf <- infer' c e t1 
+        ts <- infer' c e t2 
+        ret $ PairT tf ts
 
 ----------------------------------
