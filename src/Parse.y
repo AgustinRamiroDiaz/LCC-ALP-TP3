@@ -38,7 +38,7 @@ import Data.Char
     FST     { TFst }
     SND     { TSnd }
 
-    NATT    { TNat }
+    NATT    { TNatT }
     ZERO    { TZero }
     SUC     { TSuc }
     REC     { TRec }
@@ -48,7 +48,7 @@ import Data.Char
 %left '=' 
 %right '->'
 %left AS
-%left R
+%left REC
 %left SUC
 %left FST SND
 %right '\\' '.' LET IN
@@ -141,7 +141,7 @@ data Token = TVar String
                | TFst
                | TSnd
                
-               | TNat
+               | TNatT
                | TZero
                | TSuc
                | TRec
@@ -160,7 +160,7 @@ lexer cont s = case s of
                     ('{':('-':cs)) -> consumirBK 0 0 cont cs	
                     ('-':('}':cs)) -> \ line -> Failed $ "Línea "++(show line)++": Comentario no abierto"
                     ('-':('>':cs)) -> cont TArrow cs
-                    ('\\':cs)-> cont TAbs cs
+                    ('\\':cs) -> cont TAbs cs
                     ('.':cs) -> cont TDot cs
                     ('(':cs) -> cont TOpen cs
                     ('-':('>':cs)) -> cont TArrow cs
@@ -168,23 +168,23 @@ lexer cont s = case s of
                     (':':cs) -> cont TColon cs
                     ('=':cs) -> cont TEquals cs
                     (',':cs) -> cont TComma cs
+                    ('0':cs) -> cont TZero cs
                     unknown -> \line -> Failed $ 
                      "Línea "++(show line)++": No se puede reconocer "++(show $ take 10 unknown)++ "..."
                     where lexVar cs = case span isAlpha cs of
-                              ("E",rest)    -> cont TTypeE rest
-                              ("Unit",rest) -> cont TUnitT rest
-                              ("unit",rest) -> cont TUnit rest
-                              ("def",rest)  -> cont TDef rest
-                              ("let", rest) -> cont TLet rest
-                              ("in", rest)  -> cont TIn rest
-                              ("as", rest)  -> cont TAs rest
-                              ("fst", rest) -> cont TFst rest
-                              ("snd", rest) -> cont TSnd rest
-                              ("Nat", rest) -> cont TNat rest
-                              ("0", rest) -> cont TZero rest
-                              ("suc", rest) -> cont TSuc rest
-                              ("R", rest) -> cont TRec rest
-                              (var,rest)    -> cont (TVar var) rest
+                              ("E", rest)    -> cont TTypeE rest
+                              ("Unit", rest) -> cont TUnitT rest
+                              ("unit", rest) -> cont TUnit rest
+                              ("def", rest)  -> cont TDef rest
+                              ("let", rest)  -> cont TLet rest
+                              ("in", rest)   -> cont TIn rest
+                              ("as", rest)   -> cont TAs rest
+                              ("fst", rest)  -> cont TFst rest
+                              ("snd", rest)  -> cont TSnd rest
+                              ("Nat", rest)  -> cont TNatT rest
+                              ("suc", rest)  -> cont TSuc rest
+                              ("R", rest)    -> cont TRec rest
+                              (var, rest)    -> cont (TVar var) rest
                           consumirBK anidado cl cont s = case s of
                               ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs
                               ('{':('-':cs)) -> consumirBK (anidado+1) cl cont cs	

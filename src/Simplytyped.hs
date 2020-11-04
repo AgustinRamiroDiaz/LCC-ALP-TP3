@@ -44,14 +44,14 @@ sub _ _ (Bound j) | otherwise = Bound j
 sub _ _ (Free n   )           = Free n
 sub i t (u   :@: v)           = sub i t u :@: sub i t v
 sub i t (Lam t'  u)           = Lam t' (sub (i + 1) t u)
-sub i t (Let t1  t2)          = Let t1 (sub (i + 1) t t2)
+sub i t (Let t1  t2)          = Let (sub i t t1) (sub (i + 1) t t2)
 sub i t (As t'  tipo)         = As (sub i t t') tipo
 sub i t Unit                  = Unit
 sub i t (Fst t')              = Fst $ sub i t t'
 sub i t (Snd t')              = Snd $ sub i t t'
 sub i t (Pair t1 t2)          = Pair (sub i t t1) (sub i t t2)
 sub i t Zero                  = Zero
-sub i t (Suc t')              = Suc t'
+sub i t (Suc t')              = Suc (sub i t t')
 sub i t (Rec t1 t2 t3)        = Rec (sub i t t1) (sub i t t2) (sub i t t3)
 
 
@@ -75,22 +75,13 @@ eval e (Snd t) = case eval e t of VPair _ t2 -> t2
                                   _ -> error "snd aplicado a algo distinto de Pair"
 eval e (Pair t1 t2) = VPair (eval e t1) (eval e t2)
 eval _ Zero = VNum NZero
-eval _ t@(Suc _) = VNum (ct2nv t)
+eval e (Suc t) = case eval e t of VNum nv -> VNum (NSuc nv)
+                                  _ -> error "suc aplicado a algo distinto de Nat"
 eval e (Rec t1 t2 t3) =
     case eval e t3 of
         VNum NZero -> eval e t1
-        VNum (NSuc nv) -> eval e ((t2 :@: (Rec t1 t2 (cnv2t nv))) :@: (cnv2t nv))
-        _ -> error "no se"
-
--- Convert Term to NumVal
-ct2nv :: Term -> NumVal
-ct2nv Zero = NZero
-ct2nv (Suc t) = NSuc (ct2nv t)
-
--- Convert NumVal to Term
-cnv2t :: NumVal -> Term
-cnv2t NZero = Zero
-cnv2t (NSuc nv) = Suc (cnv2t nv)
+        VNum (NSuc nv) -> let nt = quote (VNum nv) in eval e (t2 :@: (Rec t1 t2 nt) :@: nt)
+        _ -> error "Se aplico R con el tercer termino no Nat"
 
 -----------------------
 --- quoting
@@ -151,10 +142,11 @@ infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
 infer' c e (Let t1 t2) = infer' c e t1 >>= \tx -> infer' (tx : c) e t2 >>= \tf -> ret tf
 infer' c e (As lt t) = infer' c e lt >>= \tlt -> if tlt == t then ret t else matchError t tlt
 infer' c e Unit = ret UnitT
+-- consultar sobre errores
 infer' c e (Fst t) = infer' c e t >>= \tp -> case tp of PairT tf _ -> ret tf
-                                                        _ -> error "fst aplicado a algo distinto de Pair"
+                                                        _ -> err "fst aplicado a algo distinto de Pair"
 infer' c e (Snd t) = infer' c e t >>= \tp -> case tp of PairT _ ts -> ret ts
-                                                        _ -> error "snd aplicado a algo distinto de Pair"
+                                                        _ -> err "snd aplicado a algo distinto de Pair"
 infer' c e (Pair t1 t2) = 
     do 
         tf <- infer' c e t1 
@@ -164,12 +156,17 @@ infer' c e Zero = ret NatT
 infer' c e (Suc t) =
     do 
         nt <- infer' c e t 
-        case nt of NatT -> ret NatT; _ -> error "R mal aplicado"
--- infer' c e (R t1 t2 t3) = 
---     do
---         tt1 <- infer' c e t1
---         (FunT a (FunT Nat b)) <- infer' c e t2
---         Nat <- infer' c e t3
---         if a == tt1 then ret a else matchError a tt1
+        case nt of NatT -> ret NatT; otro -> matchError NatT otro
+infer' c e (Rec t1 t2 t3) = 
+    do
+        tt1 <- infer' c e t1
+        tt2 <- infer' c e t2
+        tt3 <- infer' c e t3
+        case tt3 of 
+            NatT -> case tt2 of 
+                (FunT a (FunT NatT b)) -> if a == tt1 then ret a else matchError a tt1
+                _ -> matchError (FunT tt1 (FunT NatT tt1)) tt2
+            _ -> matchError NatT tt3
+
 
 ----------------------------------

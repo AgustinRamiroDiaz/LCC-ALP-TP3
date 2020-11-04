@@ -41,7 +41,7 @@ pp ii vs (Let t1 t2) =
   text "let "
     <> text (vs !! ii)
     <> text "="
-    <> pp (ii + 1) vs t1
+    <> pp ii vs t1
     <> text " in "
     <> pp (ii + 1) vs t2
 pp ii vs (As lt t) =
@@ -54,7 +54,7 @@ pp ii vs (Snd t) = text "snd " <> pp ii vs t
 pp ii vs (Pair t1 t2) = parens $ pp ii vs t1 <> text ", " <> pp ii vs t2
 
 pp ii vs Zero = text "0"
-pp ii vs (Suc t) = text "Suc " <> pp ii vs t
+pp ii vs (Suc t) = parens $ text "suc " <> pp ii vs t
 pp ii vs (Rec t1 t2 t3) = text "R " <> pp ii vs t1 <> pp ii vs t2 <> pp ii vs t3
 
 isLam :: Term -> Bool
@@ -91,8 +91,8 @@ fv (Fst t)            = fv t
 fv (Snd t)            = fv t
 fv (Pair t1 t2)       = fv t1 ++ fv t2
 fv Zero               = []
-fv (Suc t)            = []
-fv (Rec t1 t2 t3)     = []
+fv (Suc t)            = fv t
+fv (Rec t1 t2 t3)     = fv t1 ++ fv t2 ++ fv t3
 
 ---
 printTerm :: Term -> Doc
