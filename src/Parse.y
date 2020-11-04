@@ -26,19 +26,30 @@ import Data.Char
     VAR     { TVar $$ }
     TYPEE   { TTypeE }
     DEF     { TDef }
+
     LET     { TLet }
     IN      { TIn }
+    
     AS      { TAs }
+    
     UNITT   { TUnitT }
     UNIT    { TUnit }
+    
     FST     { TFst }
     SND     { TSnd }
+
+    NATT    { TNat }
+    ZERO    { TZero }
+    SUC     { TSuc }
+    REC     { TRec }
     
 
 %right VAR
 %left '=' 
 %right '->'
 %left AS
+%left R
+%left SUC
 %left FST SND
 %right '\\' '.' LET IN
 
@@ -55,6 +66,8 @@ Exp     :: { LamTerm }
         | Exp AS Type                  { LAs $1 $3 }
         | FST Exp                      { LFst $2 }
         | SND Exp                      { LSnd $2 }
+        | '(' Exp ',' Exp ')'          { LPair $2 $4 }
+        | SUC Exp                      { LSuc $2}
         
 NAbs    :: { LamTerm }
         : NAbs Atom                    { LApp $1 $2 }
@@ -64,13 +77,14 @@ Atom    :: { LamTerm }
         : VAR                          { LVar $1 }  
         | '(' Exp ')'                  { $2 }
         | UNIT                         { LUnit }
-        | '(' Exp ',' Exp ')'          { LPair $2 $4 }
+        | ZERO                         { LZero }
 
 Type    : TYPEE                        { EmptyT }
         | Type '->' Type               { FunT $1 $3 }
         | '(' Type ')'                 { $2 }
-        | '(' Type ',' Type ')'         { PairT $2 $4 }
+        | '(' Type ',' Type ')'        { PairT $2 $4 }
         | UNITT                        { UnitT }
+        | NATT                         { NatT }         
 
 Defs    : Defexp Defs                  { $1 : $2 }
         |                              { [] }
@@ -118,11 +132,19 @@ data Token = TVar String
 
                | TLet
                | TIn
+
                | TAs
+               
                | TUnitT
                | TUnit
+               
                | TFst
                | TSnd
+               
+               | TNat
+               | TZero
+               | TSuc
+               | TRec
                
                | TEOF
                deriving Show
@@ -158,6 +180,10 @@ lexer cont s = case s of
                               ("as", rest)  -> cont TAs rest
                               ("fst", rest) -> cont TFst rest
                               ("snd", rest) -> cont TSnd rest
+                              ("Nat", rest) -> cont TNat rest
+                              ("0", rest) -> cont TZero rest
+                              ("suc", rest) -> cont TSuc rest
+                              ("R", rest) -> cont TRec rest
                               (var,rest)    -> cont (TVar var) rest
                           consumirBK anidado cl cont s = case s of
                               ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs

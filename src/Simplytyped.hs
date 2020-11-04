@@ -30,6 +30,9 @@ conversion' b LUnit = Unit
 conversion' b (LFst lt) = Fst (conversion' b lt)
 conversion' b (LSnd lt) = Snd (conversion' b lt)
 conversion' b (LPair t1 t2) = Pair (conversion' b t1) (conversion' b t2)
+conversion' b LZero = Zero
+conversion' b (LSuc t) = Suc (conversion' b t)
+conversion' b (LRec t1 t2 t3) = Rec (conversion' b t1) (conversion' b t2) (conversion' b t3)
 
 -----------------------
 --- eval
@@ -46,7 +49,10 @@ sub i t (As t'  tipo)         = As (sub i t t') tipo
 sub i t Unit                  = Unit
 sub i t (Fst t')              = Fst $ sub i t t'
 sub i t (Snd t')              = Snd $ sub i t t'
-sub i t (Pair t1 t2)         = Pair (sub i t t1) (sub i t t2)
+sub i t (Pair t1 t2)          = Pair (sub i t t1) (sub i t t2)
+sub i t Zero                  = Zero
+sub i t (Suc t')              = Suc t'
+sub i t (Rec t1 t2 t3)        = Rec (sub i t t1) (sub i t t2) (sub i t t3)
 
 
 -- evaluador de términos
@@ -54,21 +60,37 @@ eval :: NameEnv Value Type -> Term -> Value
 eval _ (Bound _             ) = error "variable ligada inesperada en eval"
 eval e (Free  n             ) = fst $ fromJust $ lookup n e
 eval _ (Lam      t   u      ) = VLam t u
-eval e (Let      t1  t2     ) = eval e (sub 0 t1 t2)
-eval e (As lt t             ) = eval e lt
-eval e Unit                   = VUnit
--- TODO revisar si se puede ejecutar el fst antes que el eval
-eval e (Fst t)                = case eval e t of VPair t1 _ -> t1
-                                                 _ -> error "fst aplicado a algo distinto de Pair"
-eval e (Snd t)                = case eval e t of VPair _ t2 -> t2
-                                                 _ -> error "snd aplicado a algo distinto de Pair"
-eval e (Pair t1 t2)           = VPair (eval e t1) (eval e t2)
 eval e (Lam _ u  :@: Lam s v) = eval e (sub 0 (Lam s v) u)
 eval e (Lam t u1 :@: u2) = let v2 = eval e u2 in eval e (sub 0 (quote v2) u1)
 eval e (u        :@: v      ) = case eval e u of
   VLam t u' -> eval e (Lam t u' :@: v)
   _         -> error "Error de tipo en run-time, verificar type checker"
+eval e (Let t1 t2) = eval e (sub 0 t1 t2)
+eval e (As lt t) = eval e lt
+eval e Unit = VUnit
+-- TODO revisar si se puede ejecutar el fst antes que el eval
+eval e (Fst t) = case eval e t of VPair t1 _ -> t1
+                                  _ -> error "fst aplicado a algo distinto de Pair"
+eval e (Snd t) = case eval e t of VPair _ t2 -> t2
+                                  _ -> error "snd aplicado a algo distinto de Pair"
+eval e (Pair t1 t2) = VPair (eval e t1) (eval e t2)
+eval _ Zero = VNum NZero
+eval _ t@(Suc _) = VNum (ct2nv t)
+eval e (Rec t1 t2 t3) =
+    case eval e t3 of
+        VNum NZero -> eval e t1
+        VNum (NSuc nv) -> eval e ((t2 :@: (Rec t1 t2 (cnv2t nv))) :@: (cnv2t nv))
+        _ -> error "no se"
 
+-- Convert Term to NumVal
+ct2nv :: Term -> NumVal
+ct2nv Zero = NZero
+ct2nv (Suc t) = NSuc (ct2nv t)
+
+-- Convert NumVal to Term
+cnv2t :: NumVal -> Term
+cnv2t NZero = Zero
+cnv2t (NSuc nv) = Suc (cnv2t nv)
 
 -----------------------
 --- quoting
@@ -78,6 +100,8 @@ quote :: Value -> Term
 quote (VLam t f) = Lam t f
 quote VUnit = Unit
 quote (VPair v1 v2) = Pair (quote v1) (quote v2)
+quote (VNum NZero) = Zero
+quote (VNum (NSuc nv)) = Suc (quote (VNum nv))
 
 ----------------------
 --- type checker
@@ -125,16 +149,27 @@ infer' c e (t :@: u) = infer' c e t >>= \tt -> infer' c e u >>= \tu ->
     _          -> notfunError tt
 infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
 infer' c e (Let t1 t2) = infer' c e t1 >>= \tx -> infer' (tx : c) e t2 >>= \tf -> ret tf
-infer' c e (As lt t) = infer' c e lt >>= \tlt -> if tlt == t then ret t else err "Tipo no concuerda (T-Ascribe)"
+infer' c e (As lt t) = infer' c e lt >>= \tlt -> if tlt == t then ret t else matchError t tlt
 infer' c e Unit = ret UnitT
 infer' c e (Fst t) = infer' c e t >>= \tp -> case tp of PairT tf _ -> ret tf
-                                                        _ -> err "No se puede inferir el tipo debido a fst aplicado a algo distinto de Pair"
+                                                        _ -> error "fst aplicado a algo distinto de Pair"
 infer' c e (Snd t) = infer' c e t >>= \tp -> case tp of PairT _ ts -> ret ts
-                                                        _ -> err "No se puede inferir el tipo debido a snd aplicado a algo distinto de Pair"
+                                                        _ -> error "snd aplicado a algo distinto de Pair"
 infer' c e (Pair t1 t2) = 
     do 
         tf <- infer' c e t1 
         ts <- infer' c e t2 
         ret $ PairT tf ts
+infer' c e Zero = ret NatT
+infer' c e (Suc t) =
+    do 
+        nt <- infer' c e t 
+        case nt of NatT -> ret NatT; _ -> error "R mal aplicado"
+-- infer' c e (R t1 t2 t3) = 
+--     do
+--         tt1 <- infer' c e t1
+--         (FunT a (FunT Nat b)) <- infer' c e t2
+--         Nat <- infer' c e t3
+--         if a == tt1 then ret a else matchError a tt1
 
 ----------------------------------
