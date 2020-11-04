@@ -55,7 +55,11 @@ pp ii vs (Pair t1 t2) = parens $ pp ii vs t1 <> text ", " <> pp ii vs t2
 
 pp ii vs Zero = text "0"
 pp ii vs (Suc t) = parens $ text "suc " <> pp ii vs t
-pp ii vs (Rec t1 t2 t3) = text "R " <> pp ii vs t1 <> pp ii vs t2 <> pp ii vs t3
+pp ii vs (Rec t1 t2 t3) =
+    sep [ text "R" 
+        , pp ii vs t1 
+        , pp ii vs t2 
+        , pp ii vs t3]
 
 isLam :: Term -> Bool
 isLam (Lam _ _) = True

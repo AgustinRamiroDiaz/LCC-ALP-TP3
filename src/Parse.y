@@ -68,6 +68,7 @@ Exp     :: { LamTerm }
         | SND Exp                      { LSnd $2 }
         | '(' Exp ',' Exp ')'          { LPair $2 $4 }
         | SUC Exp                      { LSuc $2}
+        | REC Atom Atom Exp              { LRec $2 $3 $4 }
         
 NAbs    :: { LamTerm }
         : NAbs Atom                    { LApp $1 $2 }
