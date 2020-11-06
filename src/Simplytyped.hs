@@ -65,7 +65,7 @@ eval e (Lam t u1 :@: u2) = let v2 = eval e u2 in eval e (sub 0 (quote v2) u1)
 eval e (u        :@: v      ) = case eval e u of
   VLam t u' -> eval e (Lam t u' :@: v)
   _         -> error "Error de tipo en run-time, verificar type checker"
-eval e (Let t1 t2) = eval e (sub 0 t1 t2)
+eval e (Let t1 t2) = let v = eval e t1 in eval e (sub 0 (quote v) t2)
 eval e (As lt t) = eval e lt
 eval e Unit = VUnit
 -- TODO revisar si se puede ejecutar el fst antes que el eval
@@ -147,23 +147,23 @@ infer' c e (Fst t) = infer' c e t >>= \tp -> case tp of PairT tf _ -> ret tf
                                                         _ -> err "fst aplicado a algo distinto de Pair"
 infer' c e (Snd t) = infer' c e t >>= \tp -> case tp of PairT _ ts -> ret ts
                                                         _ -> err "snd aplicado a algo distinto de Pair"
-infer' c e (Pair t1 t2) = 
-    do 
-        tf <- infer' c e t1 
-        ts <- infer' c e t2 
+infer' c e (Pair t1 t2) =
+    do
+        tf <- infer' c e t1
+        ts <- infer' c e t2
         ret $ PairT tf ts
 infer' c e Zero = ret NatT
 infer' c e (Suc t) =
-    do 
-        nt <- infer' c e t 
+    do
+        nt <- infer' c e t
         case nt of NatT -> ret NatT; otro -> matchError NatT otro
-infer' c e (Rec t1 t2 t3) = 
+infer' c e (Rec t1 t2 t3) =
     do
         tt1 <- infer' c e t1
         tt2 <- infer' c e t2
         tt3 <- infer' c e t3
-        case tt3 of 
-            NatT -> case tt2 of 
+        case tt3 of
+            NatT -> case tt2 of
                 (FunT a (FunT NatT b)) -> if a == tt1 then ret a else matchError a tt1
                 _ -> matchError (FunT tt1 (FunT NatT tt1)) tt2
             _ -> matchError NatT tt3
