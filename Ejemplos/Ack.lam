@@ -1,12 +1,9 @@
 def Ack =
     \m:Nat.
-            (R 
-                (\x:Nat.(suc x)) 
-                (\rm:(Nat->Nat).\im:Nat. 
-        \n:Nat.
-                    R 
-                        (rm (suc 0)) 
-                        (\a:Nat.\c:Nat. rm a as Nat->Nat->Nat)
-                        n
-                    as (Nat->Nat)->Nat->(Nat->Nat)) 
+            (R (\x:Nat.(suc x))
+               (\rm:(Nat->Nat).\im:Nat.
+                    \n:Nat. R (rm (suc 0))
+                              (\a:Nat.\c:Nat. rm a as Nat->Nat->Nat)
+                              n
+                    as (Nat->Nat)->Nat->(Nat->Nat))
                 m)
