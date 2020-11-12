@@ -65,11 +65,8 @@ eval e (Lam _ u :@: v)       = let v' = eval e v in eval e (sub 0 (quote v') u)
 eval e (u :@: v)             = case eval e u of VLam t u' -> eval e (Lam t u' :@: v)
                                                 _ -> error "Error de tipo en run-time, verificar type checker"
 eval e (Let u v)             = let u' = eval e u in eval e (sub 0 (quote u') v)
--- TODO por que la aplicacion hace error de tipo run time? Deberiamos hacer un case aca?
 eval e (As u _)              = eval e u
 eval _ Unit                  = VUnit
--- TODO se puede ejecutar solo la parte que necesitas?
--- TODO que error hay que mostrar?
 eval e (Fst u)               = case eval e u of VPair v _ -> v
                                                 _ -> error "fst aplicado a algo distinto de Pair"
 eval e (Snd u)               = case eval e u of VPair _ v -> v
@@ -139,7 +136,6 @@ infer' c e (Lam t u)   = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
 infer' c e (Let u v)   = infer' c e u >>= \tu -> infer' (tu : c) e v
 infer' c e (As u t)    = infer' c e u >>= \tu -> if tu == t then ret t else matchError t tu
 infer' _ _ Unit        = ret UnitT
--- TODO que errores hay que mostrar?
 infer' c e (Fst t)     = infer' c e t >>= \tp -> case tp of PairT tf _ -> ret tf
                                                             _ -> err "fst aplicado a algo distinto de Pair"
 infer' c e (Snd t)     = infer' c e t >>= \tp -> case tp of PairT _ ts -> ret ts
