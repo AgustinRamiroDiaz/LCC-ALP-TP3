@@ -51,8 +51,8 @@ sub i t (Fst u)               = Fst $ sub i t u
 sub i t (Snd u)               = Snd $ sub i t u
 sub i t (Pair u v)            = Pair (sub i t u) (sub i t v)
 sub _ _ Zero                  = Zero
-sub i t (Suc u)              = Suc $ sub i t u
-sub i t (Rec u v w)        = Rec (sub i t u) (sub i t v) (sub i t w)
+sub i t (Suc u)               = Suc $ sub i t u
+sub i t (Rec u v w)           = Rec (sub i t u) (sub i t v) (sub i t w)
 
 
 -- evaluador de términos
@@ -136,7 +136,7 @@ infer' c e (t :@: u)   = infer' c e t >>=
                          \tu -> case tt of FunT t1 t2 -> if (tu == t1) then ret t2 else matchError t1 tu
                                            _ -> notfunError tt
 infer' c e (Lam t u)   = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
-infer' c e (Let u v)   = infer' c e u >>= \tu -> infer' (tu : c) e v >>= \tf -> ret tf
+infer' c e (Let u v)   = infer' c e u >>= \tu -> infer' (tu : c) e v
 infer' c e (As u t)    = infer' c e u >>= \tu -> if tu == t then ret t else matchError t tu
 infer' _ _ Unit        = ret UnitT
 -- TODO que errores hay que mostrar?

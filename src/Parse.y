@@ -48,9 +48,9 @@ import Data.Char
 %left '='
 %right '->'
 %left AS
-%left REC
-%left SUC
-%left FST SND
+%nonassoc REC
+%nonassoc SUC
+%nonassoc FST SND
 %right '\\' '.' LET IN
 
 %%
