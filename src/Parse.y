@@ -47,11 +47,11 @@ import Data.Char
 %right VAR
 %left '='
 %right '->'
+%right '\\' '.' LET IN
 %left AS
 %nonassoc REC
 %nonassoc SUC
 %nonassoc FST SND
-%right '\\' '.' LET IN
 
 %%
 
