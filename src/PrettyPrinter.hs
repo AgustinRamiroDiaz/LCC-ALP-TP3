@@ -28,7 +28,7 @@ pp _  _  (Free  (Global s)) = text s
 
 pp ii vs (i :@: c         ) = sep
   [ parensIf (isLam i) (pp ii vs i)
-  , nest 1 (parensIf (isLam c || isApp c) (pp ii vs c))
+  , nest 1 ((parensIfNeeded c) (pp ii vs c))
   ]
 pp ii vs (Lam t c) =
   text "\\"
@@ -49,17 +49,28 @@ pp ii vs (As lt t) =
     <> text " as "
     <> printType t
 pp ii vs Unit = text "unit"
-pp ii vs (Fst t) = text "fst " <> pp ii vs t
-pp ii vs (Snd t) = text "snd " <> pp ii vs t
+pp ii vs (Fst t) = text "fst " <> (parensIfNeeded t) (pp ii vs t)
+pp ii vs (Snd t) = text "snd " <> (parensIfNeeded t) (pp ii vs t)
 pp ii vs (Pair t1 t2) = parens $ pp ii vs t1 <> text ", " <> pp ii vs t2
 
 pp ii vs Zero = text "0"
-pp ii vs (Suc t) = parens $ text "suc " <> pp ii vs t
+pp ii vs (Suc t) = text "suc " <> (parensIfNeeded t) (pp ii vs t)
 pp ii vs (Rec t1 t2 t3) =
     sep [ text "R" 
-        , pp ii vs t1 
-        , pp ii vs t2 
-        , pp ii vs t3]
+        , (parensIfNeeded t1) (pp ii vs t1)
+        , (parensIfNeeded t2) (pp ii vs t2)
+        , (parensIfNeeded t3) (pp ii vs t3)]
+
+
+parensIfNeeded :: Term -> Doc -> Doc
+parensIfNeeded t = case t of 
+    (Lam _ _) -> parens
+    (_ :@: _) -> parens
+    (Suc _) -> parens
+    _ -> id
+
+
+
 
 isLam :: Term -> Bool
 isLam (Lam _ _) = True
